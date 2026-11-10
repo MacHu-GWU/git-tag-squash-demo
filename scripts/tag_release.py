@@ -23,6 +23,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Callable, Mapping
 
@@ -39,11 +40,28 @@ def run_git(
     env: Mapping[str, str] | None = None,
     check: bool = True,
     show_output: bool = True,
+    stream: bool = False,
+    hint: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run ``git <args>`` in the repo root, printing the command and its output."""
+    """Run ``git <args>`` in the repo root, printing the command and its output.
+
+    ``stream=True`` is for slow commands (clone / push / gc): output is not
+    captured but goes straight to the terminal, so git's live progress meter
+    stays visible, and the elapsed time is printed afterwards. ``stdout`` of
+    the returned object is then empty. ``hint`` is printed before the command.
+    """
     cmd = ["git", *args]
+    if hint:
+        print(f"[INFO] {hint}", flush=True)
     print(f"[CMD] {shlex.join(cmd)}", flush=True)
     full_env = {**os.environ, **env} if env else None
+    if stream:
+        start = time.monotonic()
+        proc = subprocess.run(cmd, cwd=REPO_ROOT, env=full_env, text=True)
+        print(f"      (took {time.monotonic() - start:.1f}s)", flush=True)
+        if check and proc.returncode != 0:
+            sys.exit(f"[ERROR] command failed (exit {proc.returncode}): {shlex.join(cmd)}")
+        return subprocess.CompletedProcess(cmd, proc.returncode, "", "")
     proc = subprocess.run(
         cmd, cwd=REPO_ROOT, env=full_env, text=True, capture_output=True
     )

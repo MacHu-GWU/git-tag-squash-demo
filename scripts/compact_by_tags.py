@@ -223,7 +223,8 @@ def local_gc() -> tuple[int, int]:
         elif ref not in keep and not ref.startswith("refs/tags/"):
             print(f"[WARN] {ref} may keep old history alive; delete it to reclaim all space")
     run_git("reflog", "expire", "--expire=now", "--expire-unreachable=now", "--all")
-    run_git("gc", "--prune=now", "--aggressive")
+    run_git("gc", "--prune=now", "--aggressive", stream=True,
+            hint="repacking every object from scratch; this can take a while on a large repo")
     run_cmd(["du", "-sh", "data", ".git"])
     run_git("count-objects", "-vH")
     count = int(git_out("rev-list", "--count", "HEAD"))
@@ -232,15 +233,17 @@ def local_gc() -> tuple[int, int]:
 
 def push_and_clone(clone_dir: Path, tags: list[str], trees: dict[str, str]) -> tuple[int, int, str]:
     section("Step 6/6: force-push and fresh clone")
-    run_git("push", "origin", BRANCH, "--force")
-    run_git("push", "origin", "--tags", "--force")
+    run_git("push", "--progress", "origin", BRANCH, "--force", stream=True,
+            hint="force-pushing the compacted history (small, should be quick)")
+    run_git("push", "--progress", "origin", "--tags", "--force", stream=True)
     url = git_out("remote", "get-url", "origin")
     if clone_dir.exists():
         print(f"[CMD] rm -rf {shlex.quote(str(clone_dir))}")
         shutil.rmtree(clone_dir)
     # --no-local: always use the pack protocol, even for a local-path origin,
     # so only reachable objects are transferred (no-op for network URLs).
-    run_git("clone", "--no-local", url, str(clone_dir))
+    run_git("clone", "--no-local", "--progress", url, str(clone_dir), stream=True,
+            hint=f"fresh clone of {url} -> {clone_dir}")
     pre = ["-C", str(clone_dir)]
     count = int(git_out(*pre, "rev-list", "--count", "HEAD"))
     run_cmd(["du", "-sh", ".git"], cwd=clone_dir)

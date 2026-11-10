@@ -42,7 +42,8 @@ def clone(url: str, dest: Path) -> CloneStats:
     if dest.exists():
         print(f"[CMD] rm -rf {dest}")
         shutil.rmtree(dest)
-    run_git("clone", "--no-local", url, str(dest))
+    run_git("clone", "--no-local", "--progress", url, str(dest), stream=True,
+            hint=f"cloning {url} -> {dest} (a bloated history can take a minute or two)")
     pre = ["-C", str(dest)]
     tags = git_out(*pre, "tag", "--sort=creatordate").split()
     return CloneStats(
@@ -75,8 +76,9 @@ def main() -> None:
             if not args.push_baseline:
                 sys.exit(f"[ERROR] origin/main ({remote_head[:12] or 'missing'}) != local HEAD ({head[:12]}); "
                          "re-run with --push-baseline to push the bloated state first")
-            run_git("push", "origin", "main", "--force")
-            run_git("push", "origin", "--tags", "--force")
+            run_git("push", "--progress", "origin", "main", "--force", stream=True,
+                    hint="pushing the bloated history to origin (can take a minute or two)")
+            run_git("push", "--progress", "origin", "--tags", "--force", stream=True)
     local_before = dir_size(REPO_ROOT / ".git")
     before = clone(url, args.baseline_dir)
     if args.skip_compact:

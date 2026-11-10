@@ -304,8 +304,9 @@ def main() -> None:
         print("[INFO] skip push (" + ("--no-push" if args.no_push else "no 'origin' remote") + ")")
         return
     force = ["--force"] if args.force_push else []
-    run_git("push", "origin", "main", *force)
-    run_git("push", "origin", "--tags", *force)
+    run_git("push", "--progress", "origin", "main", *force, stream=True,
+            hint="pushing the bloated history to origin (tens of MB, can take a minute or two)")
+    run_git("push", "--progress", "origin", "--tags", *force, stream=True)
 
 
 if __name__ == "__main__":
