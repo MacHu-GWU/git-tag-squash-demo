@@ -1,0 +1,27 @@
+[tools]
+python = "3.12"
+claude = "latest"
+
+# Extra CLI flags are forwarded to the script, e.g.:
+#   mise run step01-simulate --releases 3 --commits 10 --no-push
+#   mise run compact --no-push
+
+# ---------------------------------------------------------------- demo flow
+[tasks.step01-simulate]
+alias = "simulate"
+description = "Step 1: generate R release cycles of heavy line-level churn under data/, tag each release, push to origin"
+run = "python3 scripts/simulate_commits.py"
+
+[tasks.step02-compact-and-benchmark]
+alias = "verify"
+description = "Step 2: baseline clone -> compact by tags -> force-push -> fresh clone, with a before/after size table"
+run = "python3 scripts/verify_size_diff.py"
+
+# ---------------------------------------------------------------- building blocks
+[tasks.tag]
+description = "Cut a release: write version.txt into data/RELEASE_MARKER.txt, commit, tag, bump micro version"
+run = "python3 scripts/tag_release.py"
+
+[tasks.compact]
+description = "Squash history to one commit per tag via git commit-tree, GC, force-push, compare fresh clone size"
+run = "python3 scripts/compact_by_tags.py"
